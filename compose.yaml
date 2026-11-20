@@ -1,0 +1,20 @@
+name: esxi-iso-builder
+services:
+  builder:
+    build: .
+    image: esx-iso-builder:${BUILDER_VERSION:-local}   # tag = APP_VERSION, set by the setup script
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${BUILDER_PORT:-8443}:8443"
+      - "${MEDIA_HTTP_PORT:-8080}:${MEDIA_HTTP_PORT:-8080}"   # media-only plain HTTP (when MEDIA_HTTP_PORT is set in .env)
+    volumes:
+      - ./data:/data                 # profiles.yaml, inventories/*.csv, iso/, output/
+      - ./certs:/certs:ro            # server.crt (leaf + intermediates) + server.key from your CA
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 128

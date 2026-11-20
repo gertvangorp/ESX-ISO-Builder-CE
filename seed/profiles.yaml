@@ -1,0 +1,88 @@
+# ESX host profiles for the ESX ISO Builder
+#
+# Effective settings per host = defaults  <-  profile  <-  CSV row
+# (a non-empty CSV cell always wins; lists in a profile replace the defaults' list)
+#
+# Changes here are picked up on the next preview/build – no restart needed.
+
+defaults:
+  # VCF: every component must use the same time source(s). Best practice is an internal
+  # source that the AD DCs also use (Kerberos), e.g. your domain controllers, synced to pool.ntp.org.
+  ntp_servers: [0.pool.ntp.org, 1.pool.ntp.org, 2.pool.ntp.org]
+  dns_search: []                 # the host's own domain is always added
+  vmnic: vmnic0
+  clearpart: alldrives           # alldrives | bootdisk | none  (alldrives = clean disks for vSAN ESA claim)
+  # no --overwritevsan: the installer aborts when the boot disk is NOT a vSAN disk ("not claimed by vSAN").
+  # clearpart --alldrives already wipes every disk, vSAN disks included.
+  install_flags: [--overwritevmfs, --ignoreprereqwarnings]
+  osdata_size_mb: null           # autoPartitionOSDataSize (MB), e.g. 32768 to keep the boot disk's VMFS large
+  boot_options: []               # extra kernel boot options appended to kernelopt in boot.cfg
+  ssh: false                     # SSH off (VCF 9.x does not need SSH on the hosts). Set true in a profile only for troubleshooting.
+  esx_shell: false
+  suppress_shell_warning: true
+  regenerate_certificates: true  # self-signed cert CN = FQDN (VCF validates this); CA-signed comes later via VCF
+  tier_pct: 100                  # NVMe memory tiering: NVMe tier size as % of DRAM (1:1)
+  advanced_settings: []          # - {option: /Net/TcpipHeapMax, type: int, value: 1536}
+  kernel_settings: []            # - {name: someKernelSetting, value: "TRUE"}
+  vmware_config: []              # lines added to /etc/vmware/config (host-wide VMX defaults), idempotent
+  firstboot_commands: []         # free-form busybox/esxcli lines, run after the settings above
+  bmc_type: none
+  # %firstboot in the kickstart. ESX skips it on UEFI Secure Boot hosts - then set false and apply the
+  # settings after the install (vSphere API / your own automation; the Ansible inventory export lists them).
+  use_firstboot: true
+  installer_network: true        # static IP/VLAN for the installer itself via boot options (no DHCP wait)
+
+profiles:
+  dell-r640:
+    description: Dell PowerEdge R640 – BOSS-S1 boot, iDRAC9 virtual media
+    boot_disk: "DELLBOSS VD"
+    vmnic: vmnic1
+    bmc_type: idrac
+    # use_firstboot: false           # set when Secure Boot is on (firstboot is skipped there anyway)
+
+  ms-a2:
+    description: Minisforum MS-A2 (Ryzen 9 9955HX, Zen 5) – 3x NVMe, GL.iNet Comet KVM
+    vmnic: vmnic1
+    bmc_type: comet
+    # --- Slow entropy on AMD Zen 4 / Zen 5 (Ryzen) -------------------------------------------
+    # RDSEED is ~50x slower than on Zen 3 and fails more often. ESX then shows high CPU use
+    # ("NRandomHwrng: Out of entropy, refreshing" in vmkernel.log) that can starve hostd.
+    # Recommended for VCF 9.1.x on Zen 4/5: both settings below, then a host reboot.
+    #   https://williamlam.com/2026/04/quick-tip-high-cpu-utilization-on-esx-due-to-slow-entropy-from-amd-zen-4-cpus.html
+    #   https://williamlam.com/2026/09/vcf-9-1-1-reducing-cpu-utilization-on-amd-ryzen-zen4-zen5-by-masking-the-rdseed-instruction.html
+    # The MS-A2 BIOS 1.03 AMD firmware fix does NOT solve this for ESX – keep the workaround.
+    kernel_settings:
+      # ESX entropy source: RDRAND instead of the default RDSEED (active after reboot)
+      - {name: entropySources, value: "2"}
+    vmware_config:
+      # Mask RDSEED from all VMs on this host, so guests don't hit the slow instruction either
+      - 'cpuid.7.ebx = "-------------0------------------"'
+      # Required with NVMe memory tiering on Ryzen
+      - 'monitor_control.disable_apichv = "TRUE"'
+      # Required for NSX Edge / VNA deployment on consumer Ryzen (Edge CPU check)
+      - 'cpuid.brandstring = "AMD EPYC Ryzen 9 9955HX"'
+    firstboot_commands:
+      # Log the entropy state: Configured should be 2, Runtime changes after the reboot.
+      # Baseline count of entropy-starvation messages from this first boot, to compare later.
+      - 'esxcli system settings kernel list -o entropySources'
+      - 'N=$(grep -c "Out of entropy" /var/log/vmkernel.log 2>/dev/null); echo "entropy: ${N:-0} x Out of entropy before the fix"'
+      # --- Intel X710 (i40en): firmware LLDP agent off, so ESX/VDS sees the switch's LLDP ----------
+      #   https://www.v-consult.be/ms-a2-x710-lldp-vcenter/
+      # One value per i40en port, counted on the host: a wrong count can stop i40en from loading (KB 392205).
+      # "set" replaces the whole i40en parameter string. Active after the reboot at the end of firstboot.
+      # busybox-safe: awk counts the i40en ports in "esxcli network nic list" (3rd column = driver) and builds 0,0,...
+      - 'V=$(esxcli network nic list | awk ''$3=="i40en"{n++} END{for(i=0;i<n;i++) s=s (i?",":"") "0"; print s}''); if [ -n "$V" ]; then esxcli system module parameters set -m i40en -p "LLDP=$V"; echo "i40en: LLDP=$V"; else echo "i40en: no X710 ports found - LLDP not changed"; fi'
+      - 'esxcli system module parameters list -m i40en | grep -i lldp'
+    # --- Intel X710: hardware LRO and TSO off (known X710 LRO/TSO issues, vSAN ESA performance) ---
+    #   https://williamlam.com/2026/03/maximizing-vsan-esa-performance-on-minisforum-ms-a2.html
+    # Active after the reboot at the end of firstboot. Also pick ENS (Enhanced Data Path) as switch mode
+    # in the VCF Installer: vSAN ESA then gets 8 instead of 4 CPU helper threads.
+    i40en_lldp_off: true             # exported in the Ansible inventory, for post-install automation on Secure Boot hosts
+    advanced_settings:
+      - {option: /Net/TcpipDefLROEnabled, type: int, value: 0}
+      - {option: /Net/UseHwTSO, type: int, value: 0}
+    # --- Not host settings – done later by the VCF/NSX automation, not in the kickstart ---------
+    # NSX Manager VM (powered off): VM advanced setting  isolation.tools.getEntropy.disable = FALSE
+    #   https://williamlam.com/2026/07/quick-tip-reducing-high-cpu-utilization-on-nsx-due-to-slow-entropy-from-amd-zen4-5-cpus.html
+    # VCF Automation appliance: FIPS off (unsupported by Broadcom)
+    #   https://williamlam.com/2026/08/quick-tip-reducing-high-cpu-utilization-in-vcf-automation-vcfa-on-amd-zen4-zen5-cpus.html

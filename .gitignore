@@ -1,0 +1,11 @@
+# secrets and runtime data - never commit
+.env
+data/
+certs/*
+!certs/.keep
+*.iso
+*.zip
+*.key
+*.crt
+*.pem
+__pycache__/

@@ -1,0 +1,5 @@
+Name,Enabled,Profile,Version,Hostname,VMnic,VLANID,IP,Mask,Gateway,DNS,NTP,BootDisk,TierDisk,TierPct,BmcType,BmcAddress,Notes
+demo-r640-01,yes,dell-r640,9.1.0,demo-r640-01.lab.example.com,vmnic1,10,10.0.10.11,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,DELLBOSS VD,,,idrac,demo-r640-01-idrac.oob.example.com,Demo row - replace with your own
+demo-r640-02,yes,dell-r640,9.1.0,demo-r640-02.lab.example.com,vmnic1,10,10.0.10.12,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,DELLBOSS VD,,,idrac,demo-r640-02-idrac.oob.example.com,Demo row - replace with your own
+demo-r640-03,yes,dell-r640,9.1.0,demo-r640-03.lab.example.com,vmnic1,10,10.0.10.13,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,DELLBOSS VD,,,idrac,demo-r640-03-idrac.oob.example.com,Demo row - replace with your own
+demo-r640-04,yes,dell-r640,9.1.0,demo-r640-04.lab.example.com,vmnic1,10,10.0.10.14,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,DELLBOSS VD,,,idrac,demo-r640-04-idrac.oob.example.com,Demo row - replace with your own

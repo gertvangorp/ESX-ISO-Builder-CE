@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESX ISO Builder</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/logo-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/static/logo-64.png">
+<link rel="apple-touch-icon" href="/static/logo-180.png">
+<style>
+:root{--bg:#f4f5f2;--panel:#fff;--ink:#1d2321;--mute:#65706b;--line:#dfe3dd;--acc:#0f6e5a;--acc-ink:#fff;--warn:#a46a00;--err:#b3261e;--ok:#1d7f3b;--code:#f1f3ef;--mono:ui-monospace,"Cascadia Code","JetBrains Mono",Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#141816;--panel:#1c211f;--ink:#e3e8e4;--mute:#97a39d;--line:#2d3532;--acc:#3fbf98;--acc-ink:#08140f;--warn:#e0a63a;--err:#f08279;--ok:#5fcf85;--code:#232a27}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0 12px 0 0;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+header h1 img{width:52px;height:52px;border-radius:10px;margin:-6px 0}
+header h1 span{color:var(--acc)}
+nav button{background:none;border:0;color:var(--mute);padding:6px 10px;border-radius:6px;cursor:pointer;font:inherit}
+nav button.on{color:var(--ink);background:var(--code)}
+main{padding:20px;max-width:1500px;margin:auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.bar .grow{flex:1}
+select,input,textarea{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+textarea{font-family:var(--mono);font-size:12.5px;width:100%}
+button.b{font:inherit;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+button.b:hover,a.b:hover{border-color:var(--acc)}
+a.b{color:var(--ink);display:inline-block;font-size:12.5px}
+button.p{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+button.d{color:var(--err)}
+button:disabled{opacity:.5;cursor:default}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:900px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.m{font-family:var(--mono);font-size:12.5px}
+.sub{color:var(--mute);font-size:12px}
+.tag{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11.5px;border:1px solid var(--line);color:var(--mute)}
+.tag.ok{color:var(--ok);border-color:currentColor}.tag.err{color:var(--err);border-color:currentColor}.tag.warn{color:var(--warn);border-color:currentColor}
+.issues{white-space:normal;max-width:320px;font-size:12px}
+.issues .e{color:var(--err)}.issues .w{color:var(--warn)}
+input.ipok,.grid .fgood{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}input.ipbad,.grid .fbad{border-color:var(--err);box-shadow:0 0 0 1px var(--err)}
+.fhelp{font-size:11px;color:var(--mute);line-height:1.35}.fhelp.e{color:var(--err)}.req{color:var(--err)}
+.dnsinfo button{font:inherit;font-size:11px;padding:1px 6px;margin-left:4px;cursor:pointer}
+.dnsinfo{font-size:11.5px;font-family:var(--mono);min-height:14px;color:var(--mute)}.dnsinfo .ok{color:var(--ok)}.dnsinfo .e{color:var(--err)}.dnsinfo .w{color:var(--warn)}
+.acts{display:flex;gap:6px}
+.acts button{padding:3px 8px;font-size:12.5px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);padding:0;width:min(860px,96vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog header{position:static;padding:12px 16px}
+dialog .body{padding:16px;max-height:72vh;overflow:auto}
+dialog footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+.grid label input,.grid label select{color:var(--ink)}
+.grid .wide{grid-column:1/-1}
+pre{margin:0;font-family:var(--mono);font-size:12.5px;background:var(--code);padding:12px;border-radius:8px;white-space:pre;overflow:auto}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:20px 0 8px}
+.toast{position:fixed;right:16px;bottom:16px;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;max-width:440px;display:none;white-space:pre-wrap}
+.note{background:var(--code);border-radius:8px;padding:10px 12px;color:var(--mute);font-size:12.5px;margin-bottom:14px}
+progress{width:220px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1><img src="/static/logo-128.png" alt="">ESX <span>ISO Builder</span> <small id="appver" class="sub" style="font-weight:400;font-size:12px"></small></h1>
+  <nav><button data-tab="hosts" class="on">Hosts</button><button data-tab="isos">ISO library</button><button data-tab="profiles">Profiles</button><button data-tab="backup">Backup</button></nav>
+</header>
+
+<main>
+  <!-- ======================= HOSTS ======================= -->
+  <section id="tab-hosts">
+    <div id="pwnote" class="note hide">ESXI_ROOT_PASSWORD / ESXI_ROOT_HASH is not set in the container – previews work, builds don't.</div>
+    <div class="bar">
+      <select id="inv"></select>
+      <button class="b" id="newInv">New inventory</button>
+      <button class="b" id="importCsv">Import CSV</button>
+      <button class="b" id="exportCsv">Download CSV</button>
+      <button class="b" id="ansible">Ansible inventory</button>
+      <button class="b d" id="delInv">Delete</button>
+      <span class="grow"></span>
+      <label class="sub">Build with
+        <select id="verOverride"><option value="">version from CSV</option></select></label>
+      <button class="b" id="addHost">Add host</button>
+      <button class="b p" id="buildAll">Build all enabled</button>
+    </div>
+    <div id="job" class="note hide"></div>
+    <div class="card"><table>
+      <thead><tr><th>Host</th><th>Profile / version</th><th>Network</th><th>Boot disk / tier</th><th>BMC</th><th>Checks</th><th>ISO</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <input type="file" id="csvFile" accept=".csv" class="hide">
+  </section>
+
+  <!-- ======================= ISOs ======================= -->
+  <section id="tab-isos" class="hide">
+    <div class="note">Base ISOs: the original <b>VMware-VMvisor-Installer-&lt;version&gt;.x86_64.iso</b> from the Broadcom portal (or your custom image with vendor add-ons). The version in the file name is what the CSV <b>Version</b> column refers to. You can also drop files straight into <code>data/iso/</code>.</div>
+    <div class="bar"><input type="file" id="isoFile" accept=".iso"><button class="b p" id="upIso">Upload</button><progress id="upProg" class="hide" max="100" value="0"></progress></div>
+    <div class="cols">
+      <div><h2>Base ISOs</h2><div class="card"><table style="min-width:0"><thead><tr><th>File</th><th>Version</th><th>Size</th><th></th></tr></thead><tbody id="baseIsos"></tbody></table></div></div>
+      <div><h2>Built host ISOs</h2><div class="card"><table style="min-width:0"><thead><tr><th>Host</th><th>Base</th><th>Built</th><th></th></tr></thead><tbody id="builtIsos"></tbody></table></div></div>
+    </div>
+  </section>
+
+  <!-- ======================= PROFILES ======================= -->
+  <section id="tab-profiles" class="hide">
+    <div class="note">Effective settings = <b>defaults</b> ← <b>profile</b> ← <b>CSV row</b>. Advanced/kernel settings, boot options and extra firstboot commands live here, per hardware type.</div>
+    <textarea id="profText" rows="34" spellcheck="false"></textarea>
+    <div class="bar" style="margin-top:10px"><span class="grow"></span><button class="b" id="profReload">Reload</button><button class="b p" id="profSave">Save</button></div>
+  </section>
+  <!-- ======================= BACKUP ======================= -->
+  <section id="tab-backup" class="hide">
+    <div class="note">A backup holds everything configured here: <b>profiles.yaml</b>, all <b>inventories</b> and the <b>build manifests</b>. It doesn't include the ISOs, which you can rebuild, or <b>.env</b>, which holds the root password: keep <code>.env</code> in your password manager. A restore point is taken automatically before every change (only when something changed), and the newest <span id="keepN">30</span> are kept.</div>
+    <div class="bar">
+      <button class="b p" id="bakDownload">Download backup</button>
+      <button class="b" id="bakNow">Create restore point</button>
+      <span class="grow"></span>
+      <input type="file" id="bakFile" accept=".zip">
+      <select id="bakMode"><option value="replace">replace – also remove inventories not in the backup</option><option value="merge">merge – only overwrite what's in the backup</option></select>
+      <button class="b" id="bakRestore">Restore from file</button>
+    </div>
+    <div class="card"><table style="min-width:0"><thead><tr><th>Restore point</th><th>Created</th><th>Size</th><th></th></tr></thead><tbody id="bakRows"></tbody></table></div>
+  </section>
+</main>
+
+<!-- host editor -->
+<dialog id="dlgHost"><form method="dialog">
+  <header><b id="dlgTitle">Host</b></header>
+  <div class="body"><label class="sub" style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox" id="dnsAlias"> Accept DNS aliases (CNAME) for Hostname and BmcAddress</label><div class="grid" id="fields"></div><div id="dlgIssues" class="issues" style="margin-top:12px"></div></div>
+  <footer><button class="b" value="cancel">Cancel</button><button class="b p" id="saveHost" value="save">Save</button></footer>
+</form></dialog>
+
+<!-- text viewer -->
+<dialog id="dlgText"><form method="dialog">
+  <header><b id="txtTitle"></b></header>
+  <div class="body"><pre id="txtBody"></pre></div>
+  <footer><button class="b" id="copyTxt" type="button">Copy</button><button class="b p" value="close">Close</button></footer>
+</form></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const FIELDS = [
+  ["Name","short hostname, e.g. esx01"],["Enabled","yes / no"],["Profile",""],["Version",""],
+  ["Hostname","FQDN – needs A + PTR in DNS"],["VMnic","e.g. vmnic1 (empty = profile)"],["VLANID","0 = untagged"],
+  ["IP",""],["Mask","255.255.255.0"],["Gateway",""],["DNS","1-2 servers, ; separated"],["NTP","; separated (empty = profile)"],
+  ["BootDisk","model / driver for --firstdisk, or disk:<device id>"],["TierDisk","serial or model of the NVMe tier device (empty = off)"],
+  ["TierPct","% of DRAM, empty = profile (100)"],["BmcType","idrac / comet / none"],["BmcAddress","iDRAC or Comet FQDN"],["Notes",""],
+];
+// Info line under each field in the host editor
+const HELP = {
+  Name: "Short hostname. Letters, digits and - only; must equal the first label of Hostname.",
+  Enabled: "no = skipped by Build all enabled.",
+  Profile: "Hardware type from profiles.yaml (NTP, advanced/kernel settings, boot disk, firstboot commands).",
+  Version: "ESX build; picks the base ISO from the ISO library.",
+  Hostname: "FQDN of the host. VCF needs an A and a PTR record before you deploy.",
+  VMnic: "Management uplink, e.g. vmnic1. Empty = profile default.",
+  VLANID: "Management VLAN, 0-4094. 0 = untagged.",
+  IP: "Management IPv4 address. Filled in from DNS when empty.",
+  Mask: "Subnet mask, e.g. 255.255.255.0.",
+  Gateway: "Default gateway; must be in the IP subnet.",
+  DNS: "1-2 DNS servers (IPv4), ; separated. Only the first 2 are used.",
+  NTP: "NTP servers, ; separated. Empty = profile. VCF: same source on every component.",
+  BootDisk: "Model/vendor/driver for --firstdisk (e.g. DELLBOSS VD), or disk:<device id>. Empty = profile.",
+  TierDisk: "NVMe memory tiering device: serial (best) or model. Empty = no tiering.",
+  TierPct: "Tier size in % of DRAM, 1-400. Empty = profile (100).",
+  BmcType: "Out-of-band controller: idrac (Redfish virtual media) or comet. Empty = profile.",
+  BmcAddress: "FQDN or IP of the iDRAC / KVM; exported in the Ansible inventory for your own automation.",
+  Notes: "Free text.",
+};
+const REQUIRED = new Set(["Name", "Profile", "Version", "Hostname", "IP", "Mask", "Gateway", "DNS"]);
+const RX = {
+  name: /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i,
+  fqdn: /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i,
+  ip: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
+};
+const ip2n = s => s.split(".").reduce((a, o) => a * 256 + +o, 0);
+const isMask = s => { if (!RX.ip.test(s)) return false; const b = ip2n(s).toString(2).padStart(32, "0"); return /^1+0*$/.test(b); };
+const splitList = s => (s || "").split(/[;,\s]+/).filter(Boolean);
+// Returns an error text for field f, or "" when valid (mirrors inventory.validate on the server)
+function fieldError(f, v, all) {
+  if (!v) {
+    if (f === "BootDisk" && !(META.profile_boot || {})[all.Profile]) return "required: the profile has no boot_disk";
+    return REQUIRED.has(f) ? "required" : "";
+  }
+  switch (f) {
+    case "Name": if (!RX.name.test(v)) return "letters, digits and - only";
+      if (DATA.some(h => h.row.Name.toLowerCase() === v.toLowerCase() && h.row.Name !== $("#dlgHost").dataset.orig)) return "name already used"; break;
+    case "Hostname": if (!RX.fqdn.test(v)) return "must be an FQDN"; break;
+    case "VLANID": if (!/^\d+$/.test(v) || +v > 4094) return "0-4094"; break;
+    case "IP": if (!RX.ip.test(v)) return "not an IPv4 address";
+      if (DATA.some(h => h.row.IP === v && h.row.Name !== $("#dlgHost").dataset.orig)) return "IP already used by another host"; break;
+    case "Mask": if (!isMask(v)) return "not a valid subnet mask"; break;
+    case "Gateway": if (!RX.ip.test(v)) return "not an IPv4 address";
+      if (RX.ip.test(all.IP) && isMask(all.Mask)) {
+        const m = ip2n(all.Mask), net = (ip2n(all.IP) & m) >>> 0;
+        if (((ip2n(v) & m) >>> 0) !== net) return "not in the IP subnet";
+        if (v === all.IP) return "same as IP";
+      } break;
+    case "DNS": { const l = splitList(v); if (l.some(x => !RX.ip.test(x))) return "IPv4 addresses only"; break; }
+    case "TierPct": if (!/^\d+$/.test(v) || +v < 1 || +v > 400) return "1-400"; break;
+  }
+  return "";
+}
+function validateForm() {
+  const all = {}; $("#fields").querySelectorAll("[name]").forEach(i => all[i.name] = i.value.trim());
+  for (const [f, v] of Object.entries(all)) {
+    const inp = $(`#fields [name="${f}"]`), msg = $(`#fields .fhelp[data-for="${f}"]`);
+    const err = fieldError(f, v, all);
+    inp.classList.toggle("fbad", !!err);
+    inp.classList.toggle("fgood", !err && (REQUIRED.has(f) || (f === "BootDisk")) && !!v);
+    if (msg) { msg.textContent = err ? `✗ ${err}` : (HELP[f] || ""); msg.classList.toggle("e", !!err); }
+  }
+}
+
+let META = {}, CUR = null, DATA = [];
+
+async function api(path, opt = {}) {
+  opt.headers = Object.assign({"X-Builder": "1"}, opt.headers || {});
+  const r = await fetch(path, opt);
+  const ct = r.headers.get("content-type") || "";
+  const body = ct.includes("json") ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(typeof body === "string" ? body : (body.detail || JSON.stringify(body)));
+  return body;
+}
+function toast(msg, ms = 4000) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms); }
+const fail = e => toast("Error: " + e.message, 8000);
+const gb = n => (n / 1073741824).toFixed(2) + " GB";
+
+// ---------- tabs
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("hide", s.id !== "tab-" + b.dataset.tab));
+  if (b.dataset.tab === "isos") loadIsos();
+  if (b.dataset.tab === "profiles") loadProfiles();
+  if (b.dataset.tab === "backup") loadBackups().catch(fail);
+});
+
+// ---------- meta / inventories
+async function loadMeta(select) {
+  META = await api("/api/meta");
+  $("#appver").textContent = META.version ? "v" + META.version : "";
+  $("#pwnote").classList.toggle("hide", META.root_password_set);
+  const inv = $("#inv");
+  inv.innerHTML = META.inventories.map(n => `<option>${esc(n)}</option>`).join("") || "<option value=''>(no inventories)</option>";
+  let keep = null; try { keep = localStorage.getItem("inv"); } catch {}
+  inv.value = select || (META.inventories.includes(CUR) ? CUR : (META.inventories.includes(keep) ? keep : META.inventories[0] || ""));
+  $("#verOverride").innerHTML = `<option value="">version from CSV</option>` + META.isos.map(i => `<option>${esc(i.version)}</option>`).join("");
+  await loadInv();
+}
+$("#inv").onchange = () => loadInv().catch(fail);
+
+async function loadInv() {
+  CUR = $("#inv").value; try { localStorage.setItem("inv", CUR); } catch {}
+  if (!CUR) { $("#rows").innerHTML = ""; return; }
+  const d = await api(`/api/inventories/${encodeURIComponent(CUR)}`);
+  DATA = d.hosts;
+  $("#rows").innerHTML = DATA.map(({row: r, errors, warnings, build}) => {
+    const off = !["yes","true","1",""].includes((r.Enabled||"").toLowerCase());
+    const checks = errors.length ? `<span class="tag err">${errors.length} error(s)</span>` : `<span class="tag ok">valid</span>`;
+    const issues = errors.map(e => `<div class="e">${esc(e)}</div>`).join("") + warnings.map(w => `<div class="w">${esc(w)}</div>`).join("");
+    const iso = build && build.iso ? `<a href="/media/${encodeURIComponent(build.iso)}" download title="Download over HTTPS (media login)">${esc(build.iso)}</a><div class="sub">${esc(build.version || "")}<br>${esc((build.built||"").replace("T"," "))}</div>` : `<span class="sub">–</span>`;
+    return `<tr style="${off ? "opacity:.5" : ""}">
+      <td><b>${esc(r.Name)}</b>${off ? ' <span class="tag">disabled</span>' : ""}<div class="sub">${esc(r.Hostname)}</div></td>
+      <td>${esc(r.Profile)}<div class="sub m">${esc(r.Version)}</div></td>
+      <td class="m">${esc(r.IP)} / ${esc(r.Mask)}<div class="sub">gw ${esc(r.Gateway)} · vlan ${esc(r.VLANID||0)} · ${esc(r.VMnic||"profile")}</div></td>
+      <td class="m">${esc(r.BootDisk || "(profile)")}<div class="sub">${r.TierDisk ? "tier: " + esc(r.TierDisk) + " · " + esc(r.TierPct || "100") + "%" : "no tiering"}</div></td>
+      <td>${esc(r.BmcType)}<div class="sub">${esc(r.BmcAddress)}</div></td>
+      <td class="issues">${checks}${issues}</td>
+      <td>${iso}</td>
+      <td><div class="acts">
+        <button class="b" data-a="edit" data-n="${esc(r.Name)}">Edit</button>
+        <button class="b" data-a="ks" data-n="${esc(r.Name)}">KS</button>
+        <button class="b p" data-a="build" data-n="${esc(r.Name)}" ${errors.length ? "disabled" : ""}>Build</button>
+        <button class="b d" data-a="del" data-n="${esc(r.Name)}">✕</button></div></td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="sub">No hosts yet – Add host or Import CSV.</td></tr>`;
+}
+
+$("#rows").onclick = e => {
+  const b = e.target.closest("button[data-a]"); if (!b) return;
+  const n = b.dataset.n;
+  ({edit: () => editHost(n), ks: () => showKs(n), build: () => startBuild([n]), del: () => delHost(n)})[b.dataset.a]();
+};
+
+// ---------- host editor
+function editHost(name) {
+  const cur = name ? DATA.find(h => h.row.Name === name) : null;
+  const r = cur ? cur.row : {Enabled: "yes", Profile: Object.keys(META.profiles)[0] || "", Version: (META.isos.at(-1) || {}).version || "", VLANID: "0", Mask: "255.255.255.0"};
+  $("#dlgTitle").textContent = name ? `Edit ${name}` : "Add host";
+  $("#fields").innerHTML = FIELDS.map(([f, hint]) => {
+    let input;
+    if (f === "Profile") input = `<select name="${f}">${Object.entries(META.profiles).map(([k, d]) => `<option value="${esc(k)}" ${k === r[f] ? "selected" : ""}>${esc(k)}${d ? " – " + esc(d) : ""}</option>`).join("")}</select>`;
+    else if (f === "Version") {
+      const vs = META.isos.map(i => i.version); if (r[f] && !vs.includes(r[f])) vs.unshift(r[f]);
+      input = `<select name="${f}">${vs.map(v => `<option ${v === r[f] ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>`;
+    } else if (f === "Enabled" || f === "BmcType") {
+      const opts = f === "Enabled" ? ["yes", "no"] : ["", "idrac", "comet", "none"];
+      input = `<select name="${f}">${opts.map(v => `<option value="${v}" ${v === (r[f]||"") ? "selected" : ""}>${v || "(profile)"}</option>`).join("")}</select>`;
+    } else input = `<input name="${f}" value="${esc(r[f] || "")}" placeholder="${esc(hint)}" autocomplete="off">`;
+    const dns = (f === "Hostname" || f === "BmcAddress") ? `<div class="dnsinfo" data-for="${f}"></div>` : "";
+    const req = REQUIRED.has(f) ? ` <span class="req" title="required">*</span>` : "";
+    return `<label class="${f === "Notes" ? "wide" : ""}">${f}${req}${input}<div class="fhelp" data-for="${f}">${esc(HELP[f] || "")}</div>${dns}</label>`;
+  }).join("");
+  $("#dlgIssues").innerHTML = cur ? cur.errors.map(x => `<div class="e">${esc(x)}</div>`).join("") : "";
+  $("#dlgHost").dataset.orig = name || "";
+  $("#dlgHost").showModal();
+  ["Hostname", "BmcAddress"].forEach(dnsCheck);
+  validateForm();
+}
+$("#fields").addEventListener("input", validateForm);
+
+// ---------- DNS check under Hostname / BmcAddress (resolved by the builder's own resolver)
+const DNS_ALIAS_KEY = "esxb.dnsAlias";
+try { $("#dnsAlias").checked = localStorage.getItem(DNS_ALIAS_KEY) === "1"; } catch (e) {}
+$("#dnsAlias").onchange = () => { try { localStorage.setItem(DNS_ALIAS_KEY, $("#dnsAlias").checked ? "1" : "0"); } catch (e) {} ["Hostname", "BmcAddress"].forEach(dnsCheck); };
+$("#fields").addEventListener("click", e => {
+  const b = e.target.closest("button[data-dnsip]"); if (!b) return;
+  e.preventDefault(); $(`#fields [name="IP"]`).value = b.dataset.dnsip; validateForm(); dnsCheck("Hostname");
+});
+$("#fields").addEventListener("change", e => {
+  const n = e.target.name;
+  if (n === "Hostname" || n === "IP") dnsCheck("Hostname");
+  if (n === "BmcAddress") dnsCheck("BmcAddress");
+});
+const dnsSeq = {};
+async function dnsCheck(f) {
+  const box = $(`#fields .dnsinfo[data-for="${f}"]`); if (!box) return;
+  const name = ($(`#fields [name="${f}"]`)?.value || "").trim();
+  const ipIn = f === "Hostname" ? $(`#fields [name="IP"]`) : null;
+  if (ipIn) ipIn.classList.remove("ipok", "ipbad");
+  if (!name) { box.innerHTML = ""; return; }
+  const ip = f === "Hostname" ? ($(`#fields [name="IP"]`)?.value || "").trim() : "";
+  const seq = dnsSeq[f] = (dnsSeq[f] || 0) + 1;
+  box.innerHTML = "resolving…";
+  let r;
+  try { r = await api(`/api/dns?name=${encodeURIComponent(name)}${ip ? "&ip=" + encodeURIComponent(ip) : ""}`); }
+  catch (e) { if (seq === dnsSeq[f]) box.innerHTML = `<span class="e">DNS check failed: ${esc(e.message || e)}</span>`; return; }
+  if (seq !== dnsSeq[f]) return;   // a newer check is running
+  if (r.error) { box.innerHTML = `<span class="e">✗ ${esc(name)} ${esc(r.error)}</span>`; return; }
+  // IP field: empty -> take the DNS address (only when unambiguous), match -> green, mismatch -> red + one-click fix
+  if (ipIn) {
+    if (!ip && r.ips.length === 1) { ipIn.value = r.ips[0]; r.ip_match = true; validateForm(); toast(`IP filled in from DNS: ${r.ips[0]}`); }
+    if (r.ip_match === true) ipIn.classList.add("ipok");
+    else if (r.ip_match === false) ipIn.classList.add("ipbad");
+  }
+  const allowAlias = $("#dnsAlias").checked, out = [];
+  out.push(`→ ${r.ips.map(esc).join(", ")}`);
+  if (r.alias) out.push(`<span class="${allowAlias ? "w" : "e"}">${allowAlias ? "alias" : "✗ alias (CNAME)"} of ${esc(r.canonical)}</span>`);
+  if (r.ip_match === false) out.push(`<span class="e">✗ not ${esc(ip)}</span>` + (r.ips.length === 1 ? `<button type="button" class="b" data-dnsip="${esc(r.ips[0])}">Use DNS IP</button>` : ""));
+  else if (r.ip_match === true) out.push(`<span class="ok">✓ matches IP</span>`);
+  const want = (r.alias ? r.canonical : name).toLowerCase().replace(/\.$/, "");
+  for (const a of r.ips) {
+    const p = r.ptr[a];
+    if (!p) out.push(`<span class="${f === "Hostname" ? "e" : "w"}">✗ no PTR for ${esc(a)}</span>`);
+    else if (p.toLowerCase().replace(/\.$/, "") !== want && p.toLowerCase().replace(/\.$/, "") !== name.toLowerCase())
+      out.push(`<span class="w">PTR ${esc(a)} → ${esc(p)}</span>`);
+    else out.push(`<span class="ok">✓ PTR</span>`);
+  }
+  box.innerHTML = out.join(" · ");
+}
+$("#dlgHost").addEventListener("close", async () => {
+  if ($("#dlgHost").returnValue !== "save") return;
+  const data = {}; $("#fields").querySelectorAll("[name]").forEach(i => data[i.name] = i.value.trim());
+  if (!data.Name) return toast("Name is required");
+  const orig = $("#dlgHost").dataset.orig;
+  try {
+    const res = await api(`/api/inventories/${encodeURIComponent(CUR)}/hosts/${encodeURIComponent(orig || data.Name)}`,
+      {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(data)});
+    toast(res.errors.length ? `Saved with ${res.errors.length} error(s) – fix before building` : `Saved ${data.Name}`);
+    await loadInv();
+  } catch (e) { fail(e); }
+});
+$("#addHost").onclick = () => CUR ? editHost(null) : toast("Create an inventory first");
+
+async function delHost(n) {
+  if (!confirm(`Remove ${n} from ${CUR}?`)) return;
+  try { await api(`/api/inventories/${encodeURIComponent(CUR)}/hosts/${encodeURIComponent(n)}`, {method: "DELETE"}); await loadInv(); } catch (e) { fail(e); }
+}
+
+// ---------- text viewer
+function showText(title, text) { $("#txtTitle").textContent = title; $("#txtBody").textContent = text; $("#dlgText").showModal(); }
+$("#copyTxt").onclick = () => navigator.clipboard.writeText($("#txtBody").textContent).then(() => toast("Copied"));
+async function showKs(n) {
+  const v = $("#verOverride").value;
+  try { showText(`KS.CFG – ${n}${v ? " (" + v + ")" : ""}`, await api(`/api/inventories/${encodeURIComponent(CUR)}/hosts/${encodeURIComponent(n)}/ks${v ? "?version=" + encodeURIComponent(v) : ""}`)); } catch (e) { fail(e); }
+}
+$("#ansible").onclick = async () => { try { showText(`Ansible inventory – ${CUR}`, await api(`/api/inventories/${encodeURIComponent(CUR)}/ansible`)); } catch (e) { fail(e); } };
+
+// ---------- builds
+async function startBuild(hosts) {
+  const v = $("#verOverride").value;
+  try {
+    const job = await api(`/api/inventories/${encodeURIComponent(CUR)}/build`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({hosts, version: v || null})});
+    pollJob(job.id);
+  } catch (e) { fail(e); }
+}
+$("#buildAll").onclick = () => CUR && startBuild(null);
+async function pollJob(id) {
+  const box = $("#job"); box.classList.remove("hide");
+  const j = await api(`/api/jobs/${id}`);
+  const done = Object.keys(j.results).length;
+  const lines = Object.entries(j.results).map(([h, r]) => r.error ? `✕ ${h}: ${r.error}` : `✓ ${h}: ${r.iso} (${gb(r.size)}, boot ${r.boot.join("+")}) sha256 ${r.sha256.slice(0, 16)}…`);
+  box.innerHTML = `<b>Build ${j.state === "done" ? "finished" : "running"}</b> – ${done}/${j.hosts.length}${j.current ? " · building " + esc(j.current) : ""}${j.error ? `<div class="issues"><span class="e">${esc(j.error)}</span></div>` : ""}<pre style="margin-top:8px">${esc(lines.join("\n") || "…")}</pre>`;
+  if (j.state !== "done") setTimeout(() => pollJob(id).catch(fail), 1500); else loadInv().catch(fail);
+}
+
+// ---------- inventory actions
+$("#newInv").onclick = async () => {
+  const n = prompt("Inventory name (letters, digits, - _ .)", "ms-a2-wld"); if (!n) return;
+  try { await api(`/api/inventories/${encodeURIComponent(n)}`, {method: "POST"}); await loadMeta(n); } catch (e) { fail(e); }
+};
+$("#importCsv").onclick = () => $("#csvFile").click();
+$("#csvFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const name = prompt("Import into inventory (new name = new inventory, existing = replace its hosts)", f.name.replace(/\.csv$/i, "").toLowerCase());
+  e.target.value = ""; if (!name) return;
+  const text = await f.text();
+  try {
+    if (META.inventories.includes(name)) {
+      if (!confirm(`Replace all hosts in ${name}? (previous CSV kept as ${name}.csv.bak)`)) return;
+      await api(`/api/inventories/${encodeURIComponent(name)}/csv`, {method: "PUT", body: text, headers: {"Content-Type": "text/csv"}});
+    } else await api(`/api/inventories/${encodeURIComponent(name)}`, {method: "POST", body: text, headers: {"Content-Type": "text/csv"}});
+    await loadMeta(name); toast(`Imported ${name} – set Profile on legacy rows`);
+  } catch (e) { fail(e); }
+};
+$("#exportCsv").onclick = async () => {
+  try { const t = await api(`/api/inventories/${encodeURIComponent(CUR)}/csv`); const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([t], {type: "text/csv"})); a.download = CUR + ".csv"; a.click(); } catch (e) { fail(e); }
+};
+$("#delInv").onclick = async () => {
+  if (!CUR || !confirm(`Delete inventory ${CUR}? (kept as ${CUR}.csv.bak)`)) return;
+  try { await api(`/api/inventories/${encodeURIComponent(CUR)}`, {method: "DELETE"}); CUR = null; await loadMeta(); } catch (e) { fail(e); }
+};
+
+// ---------- ISO library
+async function loadIsos() {
+  const d = await api("/api/isos");
+  $("#baseIsos").innerHTML = d.base.map(i => `<tr><td class="m">${esc(i.file)}</td><td class="m">${esc(i.version)}</td><td>${gb(i.size)}</td>
+    <td><button class="b d" onclick="delIso('base','${esc(i.file)}')">✕</button></td></tr>`).join("") || `<tr><td colspan="4" class="sub">No base ISOs yet</td></tr>`;
+  $("#builtIsos").innerHTML = d.built.map(i => `<tr><td><b>${esc(i.host)}</b><div class="sub">${esc(i.fqdn)}</div></td><td class="m">${esc(i.version)}</td>
+    <td>${esc((i.built||"").replace("T", " "))}<div class="sub m" title="${esc(i.sha256)}">sha256 ${esc(i.sha256.slice(0, 12))}…</div></td>
+    <td><div class="acts"><a class="b" href="/media/${encodeURIComponent(i.iso)}" download title="Download over HTTPS (media login)">ISO</a>
+    <button class="b" title="Copy the media URL" onclick="copyUrl('${esc(i.url)}')">URL</button>
+    <button class="b d" onclick="delIso('built','${esc(i.iso)}')">✕</button></div></td></tr>`).join("") || `<tr><td colspan="4" class="sub">Nothing built yet</td></tr>`;
+}
+function copyUrl(u) {
+  const href = new URL(u, location.href).href;
+  const ask = () => window.prompt("Media URL (Ctrl+C to copy):", href);
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(href).then(() => toast("Media URL copied"), ask);
+  else ask();
+}
+async function delIso(kind, f) { if (!confirm(`Delete ${f}?`)) return; try { await api(`/api/isos/${kind}/${encodeURIComponent(f)}`, {method: "DELETE"}); await loadIsos(); await loadMeta(); } catch (e) { fail(e); } }
+$("#upIso").onclick = () => {
+  const f = $("#isoFile").files[0]; if (!f) return toast("Pick an ISO first");
+  const x = new XMLHttpRequest(), p = $("#upProg"); p.classList.remove("hide");
+  x.open("PUT", "/api/isos/" + encodeURIComponent(f.name)); x.setRequestHeader("X-Builder", "1");
+  x.upload.onprogress = e => p.value = e.lengthComputable ? 100 * e.loaded / e.total : 0;
+  x.onload = async () => { p.classList.add("hide"); if (x.status >= 300) return toast("Upload failed: " + x.responseText, 8000); toast("Uploaded " + f.name); await loadIsos(); await loadMeta(); };
+  x.onerror = () => { p.classList.add("hide"); toast("Upload failed"); };
+  x.send(f);
+};
+
+// ---------- profiles
+async function loadProfiles() { try { $("#profText").value = await api("/api/profiles"); } catch (e) { fail(e); } }
+$("#profReload").onclick = loadProfiles;
+$("#profSave").onclick = async () => { try { await api("/api/profiles", {method: "PUT", body: $("#profText").value}); toast("profiles.yaml saved"); await loadMeta(); } catch (e) { fail(e); } };
+
+// ---------- backup / restore
+async function loadBackups() {
+  const d = await api("/api/backups"); $("#keepN").textContent = d.keep;
+  $("#bakRows").innerHTML = d.backups.map(b => `<tr><td class="m">${esc(b.file)}</td><td>${esc(b.created)}</td><td>${(b.size / 1024).toFixed(1)} KB</td>
+    <td><div class="acts"><a class="b" style="text-decoration:none;padding:3px 8px" href="/api/backups/${encodeURIComponent(b.file)}">Download</a>
+    <button class="b" data-r="${esc(b.file)}">Restore</button><button class="b d" data-x="${esc(b.file)}">✕</button></div></td></tr>`).join("")
+    || `<tr><td colspan="4" class="sub">No restore points yet</td></tr>`;
+}
+async function doRestore(opts, label) {
+  const mode = $("#bakMode").value, q = (extra) => `/api/restore?mode=${mode}${opts.name ? "&name=" + encodeURIComponent(opts.name) : ""}${extra}`;
+  const req = extra => api(q(extra), {method: "POST", body: opts.blob, headers: {"Content-Type": "application/zip"}});
+  try {
+    const chk = await req("&dry_run=true");
+    const m = chk.manifest || {};
+    if (!confirm(`Restore ${label} (${mode})?\n\nCreated: ${m.created || "?"}\nFiles: ${chk.files.join(", ")}\n\nThe current configuration is saved as a restore point first.`)) return;
+    const res = await req("");
+    toast(`Restored ${res.restored.length} file(s) – previous state: ${res.restore_point}`, 7000);
+    await loadBackups(); await loadMeta();
+  } catch (e) { fail(e); }
+}
+$("#bakDownload").onclick = () => { location.href = "/api/backup"; };
+$("#bakNow").onclick = async () => { try { const r = await api("/api/backups", {method: "POST"}); toast("Restore point " + r.created); await loadBackups(); } catch (e) { fail(e); } };
+$("#bakRestore").onclick = async () => { const f = $("#bakFile").files[0]; if (!f) return toast("Pick a backup .zip first"); await doRestore({blob: await f.arrayBuffer()}, f.name); };
+$("#bakRows").onclick = async e => {
+  const r = e.target.closest("[data-r]"), x = e.target.closest("[data-x]");
+  if (r) await doRestore({name: r.dataset.r}, r.dataset.r);
+  if (x && confirm(`Delete ${x.dataset.x}?`)) { try { await api(`/api/backups/${encodeURIComponent(x.dataset.x)}`, {method: "DELETE"}); await loadBackups(); } catch (err) { fail(err); } }
+};
+
+loadMeta().catch(fail);
+</script>
+</body>
+</html>

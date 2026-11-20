@@ -1,0 +1,4 @@
+Name,Enabled,Profile,Version,Hostname,VMnic,VLANID,IP,Mask,Gateway,DNS,NTP,BootDisk,TierDisk,TierPct,BmcType,BmcAddress,Notes
+demo-msa2-01,yes,ms-a2,9.1.1.0.25714478,demo-msa2-01.lab.example.com,vmnic1,10,10.0.10.21,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,CT1000P3SSD8,DEMO-NVME-SERIAL-01,100,comet,demo-msa2-01-kvm.oob.example.com,Demo row - TierDisk = serial of the NVMe tier device
+demo-msa2-02,yes,ms-a2,9.1.1.0.25714478,demo-msa2-02.lab.example.com,vmnic1,10,10.0.10.22,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,CT1000P3SSD8,DEMO-NVME-SERIAL-02,100,comet,demo-msa2-02-kvm.oob.example.com,Demo row - TierDisk = serial of the NVMe tier device
+demo-msa2-03,yes,ms-a2,9.1.1.0.25714478,demo-msa2-03.lab.example.com,vmnic1,10,10.0.10.23,255.255.255.0,10.0.10.1,10.0.0.53;10.0.0.54,,CT1000P3SSD8,DEMO-NVME-SERIAL-03,100,comet,demo-msa2-03-kvm.oob.example.com,Demo row - TierDisk = serial of the NVMe tier device
